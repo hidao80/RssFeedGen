@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Let's RSS</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <style>
+    body { background-color:lightskyblue;width:95vw; }
+    textarea { width:100%; }
+    .container { width:90%;margin-left:auto;margin-right:auto;margin-top:5vh; }
+  </style>
+  <script>
+    function $(id) {
+      return document.querySelector(id);
+    }
+    function copy() {
+      $("#output").select();
+      document.execCommand("copy");
+    }
+
+    function generate() {
+      const urls = $("#urlList").value.split(/\r\n|\r|\n/);
+      console.log(urls);
+
+      const rssHeader = "<\?xml version='1.0' encoding='UTF-8'?>\n"
+                      + "<rss version='2.0'>\n"
+                      + "<channel>\n"
+                      + "<title>"+ $('#feedtitle').value +"</title>\n"
+		                  + "<link>"+ $('#feedurl').value +"</link>\n"
+		                  + "<description>"+ $('#feeddescription').value +"</description>\n"
+                      + "<lastBuildDate>"+ new Date().toLocaleString() +"</lastBuildDate>\n"
+                      + "<category>News Feed</category>\n"
+                      + "<generator>RssFeedGen</generator>\n";
+      const rssFooter = "</channel>\n"
+                      + "</rss>";
+
+      let result = [];
+      for (const url of urls) {
+        result.push(get(url));
+      }      
+      Promise.all(result).then(respons => {
+        $("#output").value = rssHeader
+                            + respons.join('')
+                            + rssFooter;
+      });
+    };
+
+    function get(url) {
+      const method = "POST";
+      const headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      };
+      const body = JSON.stringify(
+        {'url': url}
+      );
+      return fetch('http://localhost:8080/getogp.php', {method, headers, body})
+              .then(r => r.json())
+              .then(json => {
+                let domain = url.match(/^[httpsfile]+:\/{2,3}([0-9a-z\.\-:]+?):?[0-9]*?\//i);
+                return "<item>\n"
+                      + "<title>"+ json.title.trim() +"</title>\n"
+                      + "<link>"+ url.trim() +"</link>\n"
+                      + "<description>"+ json.description.trim() +"</description>\n"
+                      + "</item>\n";
+              })
+              .catch(console.error);
+    } 
+  </script>
+</head>
+<body>
+  <div class="container">
+    <form action="post">
+      <div class="form-group">
+        <div>
+          <label for="feedtitle">Feed title</label>
+          <input type="text" id="feedtitle" class="form-control" name="username" autocomplete="on" placeholder="Enter your feed title"/>
+        </div>
+        <div>
+          <label for="feedurl">Feed URL</label>
+          <input type="text" id="feedurl" class="form-control" name="url" autocomplete="on" placeholder="Enter your feed URL"/>
+        </div>
+        <div>
+          <label for="feeddescription">Feed description</label>
+          <input type="text" id="feeddescription" class="form-control" name="nickname" autocomplete="on" placeholder="Enter your feed description"/>
+        </div>
+        <button id='save' class="btn btn-primary btn-sm" >save headers</button>
+        <div>
+          <label for="urlList">URL List</label>
+          <textarea id='urlList' name="list" autocomplete="on" rows="20" class="form-control"></textarea>
+        </div>
+      </div>
+    </form>
+    <div class="form-group"> 
+      <button id='generate' class="btn btn-primary btn-lg" onclick='generate()'>generate!</button>
+      <button id='copy' class="btn btn-secondary btn-lg" onclick='copy()'>copy</button>  
+    </div>
+    <textarea id='output' rows="7" class="form-control" autocomplete="on"></textarea>
+    </div>
+</body>
+</html>
